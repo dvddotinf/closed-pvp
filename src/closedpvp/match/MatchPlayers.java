@@ -31,6 +31,16 @@ public final class MatchPlayers {
         return players.containsKey(uuid);
     }
 
+    public static boolean isTeamAssigned(Team team) {
+        for (MatchPlayerState state : players.values()) {
+            if (state.team() == team) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static void assignTeam(String uuid, Team team) {
         getOrCreate(uuid).assignTeam(team);
     }

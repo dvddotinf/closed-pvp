@@ -9,7 +9,7 @@ import mindustry.world.Block;
 
 public final class SpectatorBuildFilter {
     private static final ObjectSet<Block> allowedBlocks = ObjectSet.with(
-        Blocks.coreShard
+        Blocks.coreNucleus
     );
 
     public static boolean allow(PlayerAction action) {

@@ -17,7 +17,8 @@ public final class ClosedPvpPatches {
     private static PatchAsset createCorePlacementPatch() {
         StringBuilder json = new StringBuilder("{\n")
             .append("\"name\": \"Closed PVP core placement\",\n")
-            .append("\"block.core-shard.buildVisibility\": \"shown\"");
+            .append("\"block.core-shard.buildVisibility\": \"shown\",\n")
+	    .append("\"unit.evoke.useUnitCap\": false");
 
         for (Block block : Vars.content.blocks()) {
             if (block instanceof Floor floor && floor.hasSurface()) {
