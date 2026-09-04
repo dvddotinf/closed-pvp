@@ -11,6 +11,10 @@ public final class ActionFilters {
         Vars.netServer.admins.addActionFilter(
             SpectatorBuildFilter::allow
         );
+
+        Vars.netServer.admins.addActionFilter(
+            SpectatorRespawnFilter::allow
+        );
     }
 
     private ActionFilters() {

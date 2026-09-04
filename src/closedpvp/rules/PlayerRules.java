@@ -22,7 +22,7 @@ public final class PlayerRules {
 	    rules.blockWhitelist = true;
 	    rules.bannedBlocks.clear();
 	    rules.bannedBlocks.add(Blocks.coreNucleus);
-	    rules.hideBannedBlocks = true;
+	    rules.infiniteResources = true;
 	}
     }
 
