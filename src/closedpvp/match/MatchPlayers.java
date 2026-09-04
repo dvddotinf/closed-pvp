@@ -65,6 +65,14 @@ public final class MatchPlayers {
         players.clear();
     }
 
+    public static void clearTeam(Team team) {
+        for (MatchPlayerState state : players.values()) {
+            if (state.team() == team) {
+                state.clearTeam();
+            }
+        }
+    }
+
     private MatchPlayers() {
     }
 }

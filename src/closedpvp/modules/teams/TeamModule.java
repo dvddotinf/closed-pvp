@@ -1,5 +1,6 @@
 package closedpvp.modules.teams;
 
+import arc.struct.Seq;
 import closedpvp.match.MatchPlayers;
 import closedpvp.rules.RulesSync;
 import mindustry.game.Team;
@@ -9,24 +10,27 @@ public final class TeamModule {
     private static final int FIRST_PLAYER_TEAM_ID = 7;
 
     public static Team allocate() {
+        Seq<Team> available = new Seq<>();
+
         for (int id = FIRST_PLAYER_TEAM_ID; id < Team.all.length; id++) {
             Team team = Team.get(id);
 
             if (isAvailable(team)) {
-                return team;
+                available.add(team);
             }
         }
 
-        throw new IllegalStateException(
-            "No free teams available for Closed PVP."
-        );
+        if (available.isEmpty()) {
+            throw new IllegalStateException(
+                "No free teams available for Closed PVP."
+            );
+        }
+
+        return available.random();
     }
 
     public static void restore(Player player, Team team) {
         apply(player, team);
-
-        // Если у команды уже существует core,
-        // используем обычный vanilla respawn.
         player.checkSpawn();
     }
 
@@ -44,8 +48,6 @@ public final class TeamModule {
 
         var data = team.data();
 
-        // Не переиспользуем team, пока от предыдущего владельца
-        // в мире ещё что-либо осталось.
         if (team.active()) {
             return false;
         }

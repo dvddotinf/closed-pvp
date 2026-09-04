@@ -1,5 +1,7 @@
 package closedpvp;
 
+import arc.util.CommandHandler;
+import closedpvp.dev.DevCommands;
 import closedpvp.filters.ActionFilters;
 import closedpvp.modules.match.MatchLifecycleModule;
 import closedpvp.modules.player.PlayerLifecycleModule;
@@ -17,8 +19,13 @@ public class ClosedPvpPlugin extends Plugin {
         RulesBootstrap.register();
         ActionFilters.register();
 
-        // Gameplay lifecycle.
+        // Gameplay.
         MatchLifecycleModule.register();
         PlayerLifecycleModule.register();
+    }
+
+    @Override
+    public void registerClientCommands(CommandHandler handler) {
+        DevCommands.register(handler);
     }
 }
