@@ -1,5 +1,7 @@
 package closedpvp.rules;
 
+import mindustry.content.Blocks;
+import mindustry.game.Team;
 import mindustry.Vars;
 import mindustry.game.Rules;
 import mindustry.gen.Player;
@@ -15,12 +17,13 @@ public final class PlayerRules {
 
     private static void applyOverrides(Player player, Rules rules) {
         // Client-only overrides идут сюда.
-        //
-        // Например:
-        //
-        // if (player.team() == Team.derelict) {
-        //     rules.unitCap = 999;
-        // }
+	//
+        if (player.team() == Team.derelict) {
+	    rules.blockWhitelist = true;
+	    rules.bannedBlocks.clear();
+	    rules.bannedBlocks.add(Blocks.coreNucleus);
+	    rules.hideBannedBlocks = true;
+	}
     }
 
     private PlayerRules() {

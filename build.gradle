@@ -2,57 +2,60 @@ apply plugin: "java"
 
 sourceSets.main.java.srcDirs = ["src"]
 
-repositories{
+repositories {
     mavenCentral()
 
-    //Downloads the dependencies JAR file from Mindustry releases; does not use any real repository. Surprisingly, this is the most reliable option.
-    ivy{
+    ivy {
         url = 'https://github.com/'
-        patternLayout{artifact '/[organisation]/[module]/releases/download/[revision]/dependencies.jar'}
-        metadataSources{ artifact() }
+        patternLayout {
+            artifact '/[organisation]/[module]/releases/download/[revision]/dependencies.jar'
+        }
+        metadataSources { artifact() }
     }
 
-    //If the version is set to 'latest', downloads the latest Mindustry *release* as a dependency
-    ivy{
+    ivy {
         url = 'https://github.com/'
-        patternLayout{artifact '/[organisation]/[module]/releases/[revision]/download/dependencies.jar'}
-        metadataSources{ artifact() }
+        patternLayout {
+            artifact '/[organisation]/[module]/releases/[revision]/download/dependencies.jar'
+        }
+        metadataSources { artifact() }
     }
 
-    //For depending on the absolute newest commit for Mindustry
-    ivy{
+    ivy {
         url = 'https://github.com/'
-        patternLayout{artifact '/[organisation]/[module]/releases/download/master/[revision].jar'}
-        metadataSources{ artifact() }
+        patternLayout {
+            artifact '/[organisation]/[module]/releases/download/master/[revision].jar'
+        }
+        metadataSources { artifact() }
     }
 }
 
-java{
+java {
     targetCompatibility = JavaVersion.VERSION_17
     sourceCompatibility = JavaVersion.VERSION_17
 }
 
-ext{
-    // Mindustry version to depend on.
-    // Valid values:
-    // - latest: depend on the latest release of mindustry
-    // - be: depend on the very latest commit of mindustry
-    // - v<number>: depend on a specific commit (e.g. v158.1)
-    mindustryVersion = "latest"
+ext {
+    mindustryVersion = "v159.7"
 }
 
-dependencies{
-    compileOnly mindustryVersion == "be" ? "Anuken:MindustryBuilds:latest" : "Anuken:Mindustry:$mindustryVersion"
+dependencies {
+    compileOnly "Anuken:Mindustry:$mindustryVersion"
+
+    implementation "org.xerial:sqlite-jdbc:3.53.2.1"
 }
 
-jar{
+jar {
     archiveFileName = "${project.name}.jar"
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
-    from{
-        configurations.runtimeClasspath.collect{ it.isDirectory() ? it : zipTree(it) }
+    from {
+        configurations.runtimeClasspath.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
     }
 
-    from(rootDir){
+    from(rootDir) {
         include "plugin.json"
     }
 }
