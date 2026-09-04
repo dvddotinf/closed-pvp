@@ -1,4 +1,4 @@
-package closedpvp;
+package closedpvp.patches;
 
 import arc.Events;
 import mindustry.Vars;
@@ -8,7 +8,6 @@ import mindustry.world.Block;
 import mindustry.world.blocks.environment.Floor;
 
 public final class ClosedPvpPatches {
-
     public static void register() {
         Events.on(DataPatchLoadEvent.class, event -> {
             event.assets.add(createCorePlacementPatch());
@@ -18,8 +17,7 @@ public final class ClosedPvpPatches {
     private static PatchAsset createCorePlacementPatch() {
         StringBuilder json = new StringBuilder("{\n")
             .append("\"name\": \"Closed PVP core placement\",\n")
-            .append("\"block.core-shard.buildVisibility\": \"shown\",\n")
-            .append("\"block.core-shard.requirements\": [\"copper/10\"]");
+            .append("\"block.core-shard.buildVisibility\": \"shown\"");
 
         for (Block block : Vars.content.blocks()) {
             if (block instanceof Floor floor && floor.hasSurface()) {
