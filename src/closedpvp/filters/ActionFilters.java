@@ -9,6 +9,10 @@ public final class ActionFilters {
         );
 
         Vars.netServer.admins.addActionFilter(
+            CorePlacementFilter::allow
+        );
+
+        Vars.netServer.admins.addActionFilter(
             SpectatorBuildFilter::allow
         );
 
