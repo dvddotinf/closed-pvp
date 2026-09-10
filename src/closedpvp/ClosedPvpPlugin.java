@@ -5,6 +5,7 @@ import closedpvp.dev.DevCommands;
 import closedpvp.filters.ActionFilters;
 import closedpvp.modules.match.MatchLifecycleModule;
 import closedpvp.modules.player.PlayerLifecycleModule;
+import closedpvp.modules.defeat.DefeatModule;
 import closedpvp.patches.ClosedPvpPatches;
 import closedpvp.rules.RulesBootstrap;
 import closedpvp.storage.StorageBootstrap;
@@ -24,6 +25,7 @@ public class ClosedPvpPlugin extends Plugin {
         MatchLifecycleModule.register();
         PlayerLifecycleModule.register();
 	ZoneModule.register();
+	DefeatModule.register();
     }
 
     @Override
