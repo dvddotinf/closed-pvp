@@ -10,6 +10,7 @@ import closedpvp.patches.ClosedPvpPatches;
 import closedpvp.rules.RulesBootstrap;
 import closedpvp.storage.StorageBootstrap;
 import closedpvp.modules.zone.ZoneModule;
+import closedpvp.worldgen.WorldgenModule;
 import mindustry.mod.Plugin;
 
 public class ClosedPvpPlugin extends Plugin {
@@ -26,6 +27,7 @@ public class ClosedPvpPlugin extends Plugin {
         PlayerLifecycleModule.register();
 	ZoneModule.register();
 	DefeatModule.register();
+	WorldgenModule.register();
     }
 
     @Override
