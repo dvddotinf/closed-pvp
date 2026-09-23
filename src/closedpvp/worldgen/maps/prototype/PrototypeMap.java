@@ -1,14 +1,16 @@
 package closedpvp.worldgen.maps.prototype;
 
+import arc.struct.IntSeq;
 import mindustry.content.Blocks;
 import mindustry.world.Block;
 import mindustry.world.Tile;
+import mindustry.world.blocks.environment.SteamVent;
 
 import closedpvp.worldgen.ClosedPvpGenerator;
 import closedpvp.worldgen.GeneratedMapDefinition;
 
 public final class PrototypeMap extends ClosedPvpGenerator {
-	private static final int SIZE = 512;
+	private static final int SIZE = 800;
 
 	private static final Block BASE_FLOOR = Blocks.metalFloor;
 	private static final Block BASE_FLOOR_DAMAGED = Blocks.metalFloorDamaged;
@@ -19,16 +21,25 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 
 	private static final float SQRT3 = 1.73205080757f;
 
-	private static final float HEX_RADIUS = 28f;
+	private static final float HEX_RADIUS = 38f;
 	private static final float HEX_WALL_WIDTH = 4f;
 	private static final float HEX_WALL_THRESHOLD = 0.42f;
 	private static final float HEX_TILE_SURVIVAL = 0.97f;
 	private static final float HEX_SCRAP_THRESHOLD = 0.64f;
 	private static final float HEX_LARGE_SCRAP_CHANCE = 0.40f;
 
-	private static final float RESOURCE_BOULDER_CHANCE = 0.00018f;
+	private static final float RESOURCE_BOULDER_CHANCE = 0.00015f;
 	private static final int RESOURCE_BOULDER_MIN_RADIUS = 3;
-	private static final int RESOURCE_BOULDER_MAX_RADIUS = 5;
+	private static final int RESOURCE_BOULDER_MAX_RADIUS = 7;
+
+	private static final int ARKYCITE_BORDER_RADIUS = 2;
+	private static final float ARKYIC_SCATTER_CHANCE = 0.05f;
+
+	// Пока пробное значение: 0.1% на каждый подходящий 4x4 участок.
+	private static final float ARKYIC_VENT_CHANCE = 0.033f;
+
+	private static final float AREA_PLUS_20_SCALE = 1.095445f;
+	private static final float AREA_MINUS_15_SCALE = 0.921954f;
 
 	public PrototypeMap(int seed) {
 		super(seed);
@@ -53,7 +64,11 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 		generateOres();
 		generateBeryllium();
 		generateTungsten();
+
 		generateArkycite();
+		generateArkyciteBorder();
+		generateVents();
+		generateArkyicScatter();
 
 		generateSand();
 		generateBasaltOverSand();
@@ -63,26 +78,19 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	}
 
 	/*
-	 * ============================================================
 	 * BASE
-	 * ============================================================
 	 */
 
 	private void generateBaseFloor() {
 		pass((x, y) -> {
-			floor = scatterChance(x, y, 11, 0.01f)
-				? BASE_FLOOR_DAMAGED
-				: BASE_FLOOR;
-
+			floor = scatterChance(x, y, 11, 0.01f) ? BASE_FLOOR_DAMAGED : BASE_FLOOR;
 			block = Blocks.air;
 			ore = Blocks.air;
 		});
 	}
 
 	/*
-	 * ============================================================
 	 * HEX RUINS
-	 * ============================================================
 	 */
 
 	private void generateHexRuins() {
@@ -106,10 +114,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 			}
 
 			float material = noise(x - 2711f, y + 6143f, 2, 0.65, 22f);
-
-			block = material > HEX_SCRAP_THRESHOLD
-				? Blocks.scrapWall
-				: HEX_WALL;
+			block = material > HEX_SCRAP_THRESHOLD ? Blocks.scrapWall : HEX_WALL;
 		});
 
 		generateLargeScrapWalls();
@@ -189,17 +194,15 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	}
 
 	/*
-	 * ============================================================
 	 * SERPULO ORES
-	 * ============================================================
 	 */
 
 	private void generateOres() {
-		generateOre(Blocks.oreCopper, 0f, 1.00f, 0.86f, 1.10f);
-		generateOre(Blocks.oreLead, 1f, 1.07f, 0.89f, 1.10f);
-		generateOre(Blocks.oreCoal, 2f, 1.10f, 0.70f, 1.25f);
-		generateOre(Blocks.oreTitanium, 3f, 1.18f, 0.86f, 1.20f);
-		generateOre(Blocks.oreThorium, 4f, 1.30f, 0.92f, 1.30f);
+		generateOre(Blocks.oreCopper, 0f, 1.00f, 0.86f, 1.10f, AREA_PLUS_20_SCALE);
+		generateOre(Blocks.oreLead, 1f, 1.07f, 0.89f, 1.10f, AREA_PLUS_20_SCALE);
+		generateOre(Blocks.oreCoal, 2f, 1.10f, 0.70f, 1.25f, 1f);
+		generateOre(Blocks.oreTitanium, 3f, 1.18f, 0.86f, 1.20f, 1f);
+		generateOre(Blocks.oreThorium, 4f, 1.30f, 0.92f, 1.30f, AREA_MINUS_15_SCALE);
 	}
 
 	private void generateOre(
@@ -207,23 +210,34 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 		float index,
 		float centerThreshold,
 		float edgeThreshold,
-		float curve
+		float curve,
+		float scaleMultiplier
 	) {
-		variableOre(
-			oreBlock,
-			index,
-			(x, y) -> lerp(
+		pass((x, y) -> {
+			if (!floor.asFloor().hasSurface()) {
+				return;
+			}
+
+			float threshold = lerp(
 				centerThreshold,
 				edgeThreshold,
 				radialRichness(centerDistance(x, y), curve)
-			)
-		);
+			);
+
+			float scale1 = (40 + index * 2) * scaleMultiplier;
+			float scale2 = (30 + index * 4) * scaleMultiplier;
+
+			if (
+				Math.abs(0.5f - noise(x, y + index * 999f, 2, 0.7, scale1)) > 0.26f * threshold
+				&& Math.abs(0.5f - noise(x, y - index * 999f, 1, 1, scale2)) > 0.37f * threshold
+			) {
+				ore = oreBlock;
+			}
+		});
 	}
 
 	/*
-	 * ============================================================
 	 * BERYLLIUM
-	 * ============================================================
 	 */
 
 	private void generateBeryllium() {
@@ -235,14 +249,14 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 			0.90f,
 			1.25f,
 			0.50f,
+			0.70f,
+			0.80f,
 			101
 		);
 	}
 
 	/*
-	 * ============================================================
 	 * TUNGSTEN
-	 * ============================================================
 	 */
 
 	private void generateTungsten() {
@@ -261,9 +275,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	}
 
 	/*
-	 * ============================================================
 	 * ARKYCITE
-	 * ============================================================
 	 */
 
 	private void generateArkycite() {
@@ -284,9 +296,117 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	}
 
 	/*
-	 * ============================================================
+	 * Гарантирует минимум два tile arkyicStone вокруг liquid arkycite,
+	 * не перезаписывая Dark Panel, ресурсы и стены.
+	 */
+	private void generateArkyciteBorder() {
+		boolean[] liquid = new boolean[width * height];
+
+		for (Tile tile : tiles) {
+			liquid[tile.x + tile.y * width] = tile.floor() == Blocks.arkyciteFloor;
+		}
+
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				if (!liquid[x + y * width]) {
+					continue;
+				}
+
+				for (int dx = -ARKYCITE_BORDER_RADIUS; dx <= ARKYCITE_BORDER_RADIUS; dx++) {
+					for (int dy = -ARKYCITE_BORDER_RADIUS; dy <= ARKYCITE_BORDER_RADIUS; dy++) {
+						if (dx * dx + dy * dy > ARKYCITE_BORDER_RADIUS * ARKYCITE_BORDER_RADIUS) {
+							continue;
+						}
+
+						Tile tile = tiles.get(x + dx, y + dy);
+
+						if (
+							tile != null
+							&& tile.block() == Blocks.air
+							&& isReplaceableBaseFloor(tile.floor())
+						) {
+							tile.setFloor(Blocks.arkyicStone.asFloor());
+							tile.setOverlay(Blocks.air);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/*
+	 * VENTS
+	 */
+
+	private void generateVents() {
+		generateVent(Blocks.arkyicStone, Blocks.arkyicVent, ARKYIC_VENT_CHANCE, 600);
+	}
+
+	private void generateVent(Block targetFloor, Block ventFloor, float chance, int salt) {
+		for (int y = 1; y < height - 2; y++) {
+			for (int x = 1; x < width - 2; x++) {
+				if (!scatterChance(x, y, salt, chance) || !canPlaceVent(x, y, targetFloor)) {
+					continue;
+				}
+
+				/*
+				 * В v159.7 SteamVent штатно состоит из 3x3 floor tiles.
+				 */
+				for (var pos : SteamVent.offsets) {
+					Tile tile = tiles.getn(x + pos.x + 1, y + pos.y + 1);
+					tile.setFloor(ventFloor.asFloor());
+					tile.setOverlay(Blocks.air);
+				}
+			}
+		}
+	}
+
+	/*
+	 * Проверяем 4x4 чистого targetFloor.
+	 * Сам штатный vent занимает центральную область 3x3.
+	 */
+	private boolean canPlaceVent(int centerX, int centerY, Block targetFloor) {
+		for (int dx = -1; dx <= 2; dx++) {
+			for (int dy = -1; dy <= 2; dy++) {
+				Tile tile = tiles.get(centerX + dx, centerY + dy);
+
+				if (
+					tile == null
+					|| tile.floor() != targetFloor
+					|| tile.block() != Blocks.air
+					|| tile.overlay() != Blocks.air
+				) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	/*
+	 * 5% суммарно:
+	 * 2.5% Crystal Orbs
+	 * 2.5% Arkyic Boulder
+	 */
+	private void generateArkyicScatter() {
+		pass((x, y) -> {
+			if (floor != Blocks.arkyicStone || block != Blocks.air || ore != Blocks.air) {
+				return;
+			}
+
+			float value = scatterValue(x, y, 610);
+
+			if (value < ARKYIC_SCATTER_CHANCE / 2f) {
+				block = Blocks.crystalOrbs;
+			} else if (value < ARKYIC_SCATTER_CHANCE) {
+				block = Blocks.arkyicBoulder;
+			}
+		});
+	}
+
+	/*
 	 * DARK SAND + BASALT
-	 * ============================================================
 	 */
 
 	private void generateSand() {
@@ -326,18 +446,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	}
 
 	/*
-	 * ============================================================
 	 * RESOURCE BOULDERS
-	 * ============================================================
-	 *
-	 * Сам boulder целиком состоит из обычных стен.
-	 *
-	 * Wall ore накладывается отдельно через scatter.
-	 *
-	 * Вероятность ресурса:
-	 *
-	 * center -> 0
-	 * edge   -> maxOreChance конкретного ресурса
 	 */
 
 	private void generateResourceBoulders() {
@@ -369,12 +478,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 					ResourceBoulder.VALUES.length - 1
 				);
 
-				placeResourceBoulder(
-					x,
-					y,
-					radius,
-					ResourceBoulder.VALUES[typeIndex]
-				);
+				placeResourceBoulder(x, y, radius, ResourceBoulder.VALUES[typeIndex]);
 			}
 		}
 	}
@@ -388,11 +492,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 
 				Tile tile = tiles.get(centerX + dx, centerY + dy);
 
-				if (
-					tile == null
-					|| tile.block() != Blocks.air
-					|| tile.floor() != BASE_FLOOR
-				) {
+				if (tile == null || tile.block() != Blocks.air || tile.floor() != BASE_FLOOR) {
 					return false;
 				}
 			}
@@ -401,30 +501,14 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 		return true;
 	}
 
-	private void placeResourceBoulder(
-		int centerX,
-		int centerY,
-		int radius,
-		ResourceBoulder type
-	) {
+	private void placeResourceBoulder(int centerX, int centerY, int radius, ResourceBoulder type) {
 		for (int dx = -radius; dx <= radius; dx++) {
 			for (int dy = -radius; dy <= radius; dy++) {
 				int x = centerX + dx;
 				int y = centerY + dy;
 
 				float distance = (float)Math.sqrt(dx * dx + dy * dy);
-
-				float shape = noise(
-					x + type.ordinal() * 1337f,
-					y - type.ordinal() * 791f,
-					2,
-					0.65,
-					6f
-				);
-
-				/*
-				 * Noise слегка деформирует окружность.
-				 */
+				float shape = noise(x + type.ordinal() * 1337f, y - type.ordinal() * 791f, 2, 0.65, 6f);
 				float edge = radius - 0.7f + (shape - 0.5f) * 2f;
 
 				if (distance > edge) {
@@ -434,16 +518,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 				Tile tile = tiles.getn(x, y);
 				tile.setBlock(type.wall);
 
-				/*
-				 * 0 в центре.
-				 * 1 непосредственно на фактическом краю blob.
-				 */
 				float edgeFactor = Math.min(1f, distance / Math.max(edge, 0.001f));
-
-				/*
-				 * Максимальная насыщенность достигается
-				 * только возле внешней поверхности валуна.
-				 */
 				float oreChance = type.maxOreChance * edgeFactor;
 
 				if (scatterChance(x, y, 410 + type.ordinal(), oreChance)) {
@@ -454,29 +529,10 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	}
 
 	private enum ResourceBoulder {
-		BERYLLIUM(
-			Blocks.beryllicStoneWall,
-			Blocks.wallOreBeryllium,
-			1.00f
-		),
-
-		TUNGSTEN(
-			Blocks.ferricStoneWall,
-			Blocks.wallOreTungsten,
-			0.50f
-		),
-
-		THORIUM(
-			Blocks.crystallineStoneWall,
-			Blocks.wallOreThorium,
-			0.75f
-		),
-
-		GRAPHITE(
-			Blocks.carbonWall,
-			Blocks.wallOreGraphite,
-			0.50f
-		);
+		BERYLLIUM(Blocks.beryllicStoneWall, Blocks.wallOreBeryllium, 1.00f),
+		TUNGSTEN(Blocks.ferricStoneWall, Blocks.wallOreTungsten, 0.50f),
+		THORIUM(Blocks.crystallineStoneWall, Blocks.wallOreThorium, 0.75f),
+		GRAPHITE(Blocks.carbonWall, Blocks.wallOreGraphite, 0.50f);
 
 		static final ResourceBoulder[] VALUES = values();
 
@@ -492,9 +548,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	}
 
 	/*
-	 * ============================================================
-	 * SCATTER
-	 * ============================================================
+	 * BASE METAL FLOOR SCATTER
 	 */
 
 	private void generateScatter() {
@@ -505,22 +559,20 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 
 			float value = scatterValue(x, y, 500);
 
-			if (value < 0.0010f) {
+			if (value < 0.0005f) {
 				block = Blocks.crystalCluster;
-			} else if (value < 0.0015f) {
+			} else if (value < 0.001f) {
 				block = Blocks.vibrantCrystalCluster;
-			} else if (value < 0.0040f) {
+			} else if (value < 0.0020f) {
 				block = Blocks.sporeCluster;
-			} else if (value < 0.0050f) {
+			} else if (value < 0.0025f) {
 				block = Blocks.whiteTree;
 			}
 		});
 	}
 
 	/*
-	 * ============================================================
-	 * FUTURE GENERATOR PRIMITIVES
-	 * ============================================================
+	 * DEPOSIT PRIMITIVES
 	 */
 
 	private void generateScatteredOreLikeDeposit(
@@ -531,9 +583,20 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 		float edgeThreshold,
 		float curve,
 		float fillChance,
+		float areaKeep,
+		float componentKeepChance,
 		int scatterSalt
 	) {
-		pass((x, y) -> {
+		boolean[] mask = new boolean[width * height];
+
+		for (Tile tile : tiles) {
+			int x = tile.x;
+			int y = tile.y;
+
+			if (tile.block() != Blocks.air || !isReplaceableBaseFloor(tile.floor())) {
+				continue;
+			}
+
 			float threshold = lerp(
 				centerThreshold,
 				edgeThreshold,
@@ -541,41 +604,172 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 			);
 
 			boolean inside =
-				Math.abs(
-					0.5f - noise(
-						x,
-						y + index * 999f,
-						2,
-						0.7,
-						40 + index * 2
-					)
-				) > 0.26f * threshold
-				&&
-				Math.abs(
-					0.5f - noise(
-						x,
-						y - index * 999f,
-						1,
-						1,
-						30 + index * 4
-					)
-				) > 0.37f * threshold;
+				Math.abs(0.5f - noise(x, y + index * 999f, 2, 0.7, 40 + index * 2)) > 0.26f * threshold
+				&& Math.abs(0.5f - noise(x, y - index * 999f, 1, 1, 30 + index * 4)) > 0.37f * threshold;
 
-			if (!inside) {
-				return;
+			mask[x + y * width] = inside;
+		}
+
+		tuneDepositMask(mask, areaKeep, componentKeepChance, scatterSalt + 1000);
+
+		for (Tile tile : tiles) {
+			int x = tile.x;
+			int y = tile.y;
+
+			if (!mask[x + y * width]) {
+				continue;
 			}
 
-			if (block != Blocks.air || !isReplaceableBaseFloor(floor)) {
-				return;
+			tile.setFloor(depositFloor.asFloor());
+			tile.setOverlay(
+				scatterChance(x, y, scatterSalt, fillChance)
+					? oreBlock
+					: Blocks.air
+			);
+		}
+	}
+
+	/*
+	 * componentKeepChance отвечает только за частоту месторождений.
+	 * areaKeep — за площадь каждого оставшегося component.
+	 *
+	 * Уменьшение площади идёт с краёв внутрь, поэтому мы не получаем
+	 * случайные дырки посреди бериллиевой жилы.
+	 */
+	private void tuneDepositMask(
+		boolean[] mask,
+		float areaKeep,
+		float componentKeepChance,
+		int salt
+	) {
+		boolean[] visited = new boolean[mask.length];
+
+		IntSeq stack = new IntSeq();
+		IntSeq component = new IntSeq();
+		IntSeq edge = new IntSeq();
+
+		for (int start = 0; start < mask.length; start++) {
+			if (!mask[start] || visited[start]) {
+				continue;
 			}
 
-			floor = depositFloor;
-			ore = Blocks.air;
+			stack.clear();
+			component.clear();
 
-			if (scatterChance(x, y, scatterSalt, fillChance)) {
-				ore = oreBlock;
+			stack.add(start);
+			visited[start] = true;
+
+			while (!stack.isEmpty()) {
+				int pos = stack.pop();
+				component.add(pos);
+
+				int x = pos % width;
+				int y = pos / width;
+
+				addMaskNeighbor(mask, visited, stack, x - 1, y);
+				addMaskNeighbor(mask, visited, stack, x + 1, y);
+				addMaskNeighbor(mask, visited, stack, x, y - 1);
+				addMaskNeighbor(mask, visited, stack, x, y + 1);
 			}
-		});
+
+			int sample = component.get(0);
+			int sampleX = sample % width;
+			int sampleY = sample / width;
+
+			if (!scatterChance(sampleX, sampleY, salt, componentKeepChance)) {
+				for (int i = 0; i < component.size; i++) {
+					mask[component.get(i)] = false;
+				}
+
+				continue;
+			}
+
+			int targetRemove = Math.round(component.size * (1f - areaKeep));
+			int layer = 0;
+
+			while (targetRemove > 0) {
+				edge.clear();
+
+				for (int i = 0; i < component.size; i++) {
+					int pos = component.get(i);
+
+					if (!mask[pos]) {
+						continue;
+					}
+
+					int x = pos % width;
+					int y = pos / width;
+
+					if (isMaskEdge(mask, x, y)) {
+						edge.add(pos);
+					}
+				}
+
+				if (edge.isEmpty()) {
+					break;
+				}
+
+				int removeThisLayer = Math.min(targetRemove, edge.size);
+				float removeChance = (float)removeThisLayer / edge.size;
+				int removed = 0;
+
+				for (int i = 0; i < edge.size && removed < removeThisLayer; i++) {
+					int pos = edge.get(i);
+					int x = pos % width;
+					int y = pos / width;
+
+					if (scatterChance(x, y, salt + 100 + layer, removeChance)) {
+						mask[pos] = false;
+						removed++;
+						targetRemove--;
+					}
+				}
+
+				if (removed < removeThisLayer) {
+					int offset = (int)(
+						scatterValue(sampleX, sampleY, salt + 500 + layer) * edge.size
+					);
+
+					for (int i = 0; i < edge.size && removed < removeThisLayer; i++) {
+						int pos = edge.get((offset + i) % edge.size);
+
+						if (!mask[pos]) {
+							continue;
+						}
+
+						mask[pos] = false;
+						removed++;
+						targetRemove--;
+					}
+				}
+
+				layer++;
+			}
+		}
+	}
+
+	private void addMaskNeighbor(boolean[] mask, boolean[] visited, IntSeq stack, int x, int y) {
+		if (x < 0 || y < 0 || x >= width || y >= height) {
+			return;
+		}
+
+		int pos = x + y * width;
+
+		if (mask[pos] && !visited[pos]) {
+			visited[pos] = true;
+			stack.add(pos);
+		}
+	}
+
+	private boolean isMaskEdge(boolean[] mask, int x, int y) {
+		return !maskAt(mask, x - 1, y)
+			|| !maskAt(mask, x + 1, y)
+			|| !maskAt(mask, x, y - 1)
+			|| !maskAt(mask, x, y + 1);
+	}
+
+	private boolean maskAt(boolean[] mask, int x, int y) {
+		return x >= 0 && y >= 0 && x < width && y < height && mask[x + y * width];
 	}
 
 	private void generateScatteredDeposit(
@@ -601,13 +795,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 				radialRichness(centerDistance(x, y), curve)
 			);
 
-			float value = noise(
-				x + offsetX,
-				y + offsetY,
-				3,
-				0.68,
-				scale
-			);
+			float value = noise(x + offsetX, y + offsetY, 3, 0.68, scale);
 
 			if (value <= threshold) {
 				return;
@@ -677,9 +865,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	}
 
 	/*
-	 * ============================================================
 	 * UTILITY
-	 * ============================================================
 	 */
 
 	private boolean isReplaceableBaseFloor(Block floor) {
