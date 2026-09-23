@@ -11,34 +11,33 @@ import mindustry.gen.Unit;
 
 public final class SpectatorModule {
     public static void enter(Player player) {
-	float x = player.x();
-	float y = player.y();
+	    Unit previous = player.unit();
 
-	if (!insideWorld(x, y)) {
-	    x = Vars.world.unitWidth() / 2f;
-	    y = Vars.world.unitHeight() / 2f;
-	}
+	    float x;
+	    float y;
 
-	MatchPlayers.clearTeam(player);
+	    if (previous != null && previous.isValid()) {
+		x = previous.x();
+		y = previous.y();
+	    } else {
+		x = Vars.world.unitWidth() / 2f;
+		y = Vars.world.unitHeight() / 2f;
+	    }
 
-	// Отвязываемся от старого controlled unit.
-	// Сам unit здесь намеренно не уничтожается:
-	// при defeat этим занимается destroyToDerelict().
-	player.clearUnit();
+	    MatchPlayers.clearTeam(player);
 
-	player.team(Team.derelict);
+	    player.clearUnit();
+	    player.team(Team.derelict);
 
-	Unit evoke = UnitTypes.evoke.create(Team.derelict);
-	evoke.set(x, y);
-	evoke.add();
+	    Unit evoke = UnitTypes.evoke.create(Team.derelict);
+	    evoke.set(x, y);
+	    evoke.add();
 
-	// Не обязательно для корректности snapshots,
-	// но отправляет spawn клиентам сразу.
-	Units.notifyUnitSpawn(evoke);
+	    Units.notifyUnitSpawn(evoke);
 
-	player.unit(evoke);
+	    player.unit(evoke);
 
-	RulesSync.sync(player);
+	    RulesSync.sync(player);
     }
 
     private static boolean insideWorld(float x, float y) {

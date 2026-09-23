@@ -14,6 +14,8 @@ public final class ClosedPvpRules {
 
         // Spectator может бесплатно построить первое ядро.
         rules.teams.get(Team.derelict).infiniteResources = true;
+
+	rules.pvpAutoPause = false;
     }
 
     private ClosedPvpRules() {

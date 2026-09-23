@@ -9,6 +9,12 @@ import mindustry.world.WorldParams;
 
 import java.util.concurrent.ThreadLocalRandom;
 
+import arc.Events;
+import arc.struct.Seq;
+
+import mindustry.game.EventType.DataPatchLoadEvent;
+import mindustry.mod.data.DataAsset;
+
 public final class WorldgenModule {
     private static boolean registered;
 
@@ -62,36 +68,41 @@ public final class WorldgenModule {
     }
 
     private static void load(
-        Map map,
-        GeneratedMapDefinition definition
-    ) {
-        int seed =
-            ThreadLocalRandom.current().nextInt();
+	    Map map,
+	    GeneratedMapDefinition definition
+	) {
+	    int seed =
+		ThreadLocalRandom.current().nextInt();
 
-        Log.info(
-            "[ClosedPVP] Generating map '@' with seed @.",
-            definition.name(),
-            seed
-        );
+	    Log.info(
+		"[ClosedPVP] Generating map '@' with seed @.",
+		definition.name(),
+		seed
+	    );
 
-        /*
-         * World.loadMap() returns immediately after executing a
-         * custom loader, so it does not reach its normal state.map
-         * assignment. Generated loaders own this assignment.
-         */
-        Vars.state.map = map;
+	    Vars.state.map = map;
 
-        ClosedPvpGenerator generator =
-            definition.generator().create(seed);
+	    // Generated maps bypass SaveIO, so Mindustry does not load
+	    // data patches automatically. Reproduce that lifecycle here.
+	    Seq<DataAsset> assets = new Seq<>();
 
-        Vars.world.loadGenerator(
-            definition.width(),
-            definition.height(),
-            tiles -> generator.generate(
-                tiles,
-                new WorldParams()
-            )
-        );
+	    Events.fire(
+		new DataPatchLoadEvent(assets)
+	    );
+
+	    Vars.state.data.load(assets);
+
+	    ClosedPvpGenerator generator =
+		definition.generator().create(seed);
+
+	    Vars.world.loadGenerator(
+		definition.width(),
+		definition.height(),
+		tiles -> generator.generate(
+		    tiles,
+		    new WorldParams()
+		)
+	    );
     }
 
     private WorldgenModule() {
