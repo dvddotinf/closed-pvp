@@ -23,10 +23,18 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 
 	private static final float HEX_RADIUS = 38f;
 	private static final float HEX_WALL_WIDTH = 4f;
-	private static final float HEX_WALL_THRESHOLD = 0.42f;
+	private static final float HEX_WALL_THRESHOLD = 0.3f;
 	private static final float HEX_TILE_SURVIVAL = 0.97f;
-	private static final float HEX_SCRAP_THRESHOLD = 0.64f;
-	private static final float HEX_LARGE_SCRAP_CHANCE = 0.40f;
+	private static final float HEX_SCRAP_THRESHOLD = 0.54f;
+	private static final float HEX_LARGE_SCRAP_CHANCE = 0.30f;
+
+	private static final float MOSS_BLOB_SCALE = 60f;
+	private static final float MOSS_BLOB_THRESHOLD = 0.82f;
+	private static final float MOSS_MIX_SCALE = 9f;
+	private static final float SPORE_MOSS_THRESHOLD = 0.52f;
+
+	private static final float MOSS_SPORE_CLUSTER_CHANCE = 0.02f;
+	private static final float MOSS_VIBRANT_CRYSTAL_CHANCE = 0.01f;
 
 	private static final float RESOURCE_BOULDER_CHANCE = 0.00015f;
 	private static final int RESOURCE_BOULDER_MIN_RADIUS = 3;
@@ -34,9 +42,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 
 	private static final int ARKYCITE_BORDER_RADIUS = 2;
 	private static final float ARKYIC_SCATTER_CHANCE = 0.05f;
-
-	// Пока пробное значение: 0.1% на каждый подходящий 4x4 участок.
-	private static final float ARKYIC_VENT_CHANCE = 0.033f;
+	private static final float ARKYIC_VENT_CHANCE = 0.001f;
 
 	private static final float AREA_PLUS_20_SCALE = 1.095445f;
 	private static final float AREA_MINUS_15_SCALE = 0.921954f;
@@ -60,6 +66,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	protected void generate() {
 		generateBaseFloor();
 		generateHexRuins();
+		generateMossFloor();
 
 		generateOres();
 		generateBeryllium();
@@ -74,6 +81,8 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 		generateBasaltOverSand();
 
 		generateResourceBoulders();
+
+		generateMossScatter();
 		generateScatter();
 	}
 
@@ -86,6 +95,51 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 			floor = scatterChance(x, y, 11, 0.01f) ? BASE_FLOOR_DAMAGED : BASE_FLOOR;
 			block = Blocks.air;
 			ore = Blocks.air;
+		});
+	}
+
+	/*
+	 * MOSS
+	 */
+
+	private boolean isMossRegion(int x, int y) {
+		float value = noise(x + 8123f, y - 3571f, 3, 0.62, MOSS_BLOB_SCALE);
+		return value > MOSS_BLOB_THRESHOLD;
+	}
+
+	private Block mossFloor(int x, int y) {
+		float value = noise(x - 2731f, y + 6197f, 2, 0.65, MOSS_MIX_SCALE);
+		return value > SPORE_MOSS_THRESHOLD ? Blocks.sporeMoss : Blocks.moss;
+	}
+
+	private boolean isMossFloor(Block floor) {
+		return floor == Blocks.moss || floor == Blocks.sporeMoss;
+	}
+
+	private void generateMossFloor() {
+		pass((x, y) -> {
+			if (!isMossRegion(x, y) || !isReplaceableBaseFloor(floor)) {
+				return;
+			}
+
+			floor = mossFloor(x, y);
+			ore = Blocks.air;
+		});
+	}
+
+	private void generateMossScatter() {
+		pass((x, y) -> {
+			if (!isMossFloor(floor) || block != Blocks.air || ore != Blocks.air) {
+				return;
+			}
+
+			float value = scatterValue(x, y, 520);
+
+			if (value < MOSS_SPORE_CLUSTER_CHANCE) {
+				block = Blocks.sporeCluster;
+			} else if (value < MOSS_SPORE_CLUSTER_CHANCE + MOSS_VIBRANT_CRYSTAL_CHANCE) {
+				block = Blocks.vibrantCrystalCluster;
+			}
 		});
 	}
 
@@ -113,6 +167,11 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 				return;
 			}
 
+			if (isMossRegion(x, y)) {
+				block = Blocks.sporeWall;
+				return;
+			}
+
 			float material = noise(x - 2711f, y + 6143f, 2, 0.65, 22f);
 			block = material > HEX_SCRAP_THRESHOLD ? Blocks.scrapWall : HEX_WALL;
 		});
@@ -121,24 +180,33 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 	}
 
 	private void generateLargeScrapWalls() {
-		for (int y = 0; y < height - 1; y++) {
-			for (int x = 0; x < width - 1; x++) {
-				if (!canPlaceLargeScrapWall(x, y)) {
+		generateScrapMultiblocks(Blocks.scrapWallGigantic, 34);
+		generateScrapMultiblocks(Blocks.scrapWallHuge, 33);
+		generateScrapMultiblocks(Blocks.scrapWallLarge, 32);
+	}
+
+	private void generateScrapMultiblocks(Block wall, int salt) {
+		int size = wall.size;
+
+		for (int y = 0; y <= height - size; y++) {
+			for (int x = 0; x <= width - size; x++) {
+				if (!canPlaceScrapMultiblock(x, y, size)) {
 					continue;
 				}
 
-				if (!scatterChance(x, y, 32, HEX_LARGE_SCRAP_CHANCE)) {
+				if (!scatterChance(x, y, salt, HEX_LARGE_SCRAP_CHANCE)) {
 					continue;
 				}
 
-				tiles.getn(x, y).setBlock(Blocks.scrapWallLarge);
+				int anchorOffset = (size - 1) / 2;
+				tiles.getn(x + anchorOffset, y + anchorOffset).setBlock(wall);
 			}
 		}
 	}
 
-	private boolean canPlaceLargeScrapWall(int x, int y) {
-		for (int dx = 0; dx < 2; dx++) {
-			for (int dy = 0; dy < 2; dy++) {
+	private boolean canPlaceScrapMultiblock(int x, int y, int size) {
+		for (int dx = 0; dx < size; dx++) {
+			for (int dy = 0; dy < size; dy++) {
 				if (tiles.getn(x + dx, y + dy).block() != Blocks.scrapWall) {
 					return false;
 				}
@@ -295,10 +363,6 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 		);
 	}
 
-	/*
-	 * Гарантирует минимум два tile arkyicStone вокруг liquid arkycite,
-	 * не перезаписывая Dark Panel, ресурсы и стены.
-	 */
 	private void generateArkyciteBorder() {
 		boolean[] liquid = new boolean[width * height];
 
@@ -349,9 +413,6 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 					continue;
 				}
 
-				/*
-				 * В v159.7 SteamVent штатно состоит из 3x3 floor tiles.
-				 */
 				for (var pos : SteamVent.offsets) {
 					Tile tile = tiles.getn(x + pos.x + 1, y + pos.y + 1);
 					tile.setFloor(ventFloor.asFloor());
@@ -361,10 +422,6 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 		}
 	}
 
-	/*
-	 * Проверяем 4x4 чистого targetFloor.
-	 * Сам штатный vent занимает центральную область 3x3.
-	 */
 	private boolean canPlaceVent(int centerX, int centerY, Block targetFloor) {
 		for (int dx = -1; dx <= 2; dx++) {
 			for (int dy = -1; dy <= 2; dy++) {
@@ -384,11 +441,6 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 		return true;
 	}
 
-	/*
-	 * 5% суммарно:
-	 * 2.5% Crystal Orbs
-	 * 2.5% Arkyic Boulder
-	 */
 	private void generateArkyicScatter() {
 		pass((x, y) -> {
 			if (floor != Blocks.arkyicStone || block != Blocks.air || ore != Blocks.air) {
@@ -561,11 +613,7 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 
 			if (value < 0.0005f) {
 				block = Blocks.crystalCluster;
-			} else if (value < 0.001f) {
-				block = Blocks.vibrantCrystalCluster;
-			} else if (value < 0.0020f) {
-				block = Blocks.sporeCluster;
-			} else if (value < 0.0025f) {
+			} else if (value < 0.0010f) {
 				block = Blocks.whiteTree;
 			}
 		});
@@ -629,13 +677,6 @@ public final class PrototypeMap extends ClosedPvpGenerator {
 		}
 	}
 
-	/*
-	 * componentKeepChance отвечает только за частоту месторождений.
-	 * areaKeep — за площадь каждого оставшегося component.
-	 *
-	 * Уменьшение площади идёт с краёв внутрь, поэтому мы не получаем
-	 * случайные дырки посреди бериллиевой жилы.
-	 */
 	private void tuneDepositMask(
 		boolean[] mask,
 		float areaKeep,
