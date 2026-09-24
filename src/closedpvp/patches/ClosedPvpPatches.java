@@ -8,34 +8,35 @@ import mindustry.world.Block;
 import mindustry.world.blocks.environment.Floor;
 
 public final class ClosedPvpPatches {
-    public static void register() {
-        Events.on(DataPatchLoadEvent.class, event -> {
-            event.assets.add(createCorePlacementPatch());
-        });
-    }
+	public static void register() {
+		Events.on(DataPatchLoadEvent.class, event -> {
+			event.assets.add(createCorePlacementPatch());
+		});
+	}
 
-    private static PatchAsset createCorePlacementPatch() {
-        StringBuilder json = new StringBuilder("{\n")
-            .append("\"name\": \"Closed PVP core placement\",\n")
-            .append("\"block.core-shard.buildVisibility\": \"shown\",\n")
-	    .append("\"unit.evoke.useUnitCap\": false");
+	private static PatchAsset createCorePlacementPatch() {
+		StringBuilder json = new StringBuilder("{\n")
+			.append("\"name\": \"Closed PVP core placement\",\n")
+			.append("\"block.core-shard.buildVisibility\": \"shown\",\n")
+			.append("\"block.core-shard.requirements\": [\"copper/1000\", \"lead/1000\", \"silicon/500\"],\n")
+			.append("\"unit.evoke.useUnitCap\": false");
 
-        for (Block block : Vars.content.blocks()) {
-            if (block instanceof Floor floor && floor.hasSurface()) {
-                json.append(",\n\"block.")
-                    .append(block.name)
-                    .append(".allowCorePlacement\": true");
-            }
-        }
+		for (Block block : Vars.content.blocks()) {
+			if (block instanceof Floor floor && floor.hasSurface()) {
+				json.append(",\n\"block.")
+					.append(block.name)
+					.append(".allowCorePlacement\": true");
+			}
+		}
 
-        json.append("\n}");
+		json.append("\n}");
 
-        PatchAsset patch = new PatchAsset(json.toString());
-        patch.setPath("closed-pvp/core-placement.json");
+		PatchAsset patch = new PatchAsset(json.toString());
+		patch.setPath("closed-pvp/core-placement.json");
 
-        return patch;
-    }
+		return patch;
+	}
 
-    private ClosedPvpPatches() {
-    }
+	private ClosedPvpPatches() {
+	}
 }
