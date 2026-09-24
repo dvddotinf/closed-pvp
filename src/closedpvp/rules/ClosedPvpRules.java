@@ -16,6 +16,8 @@ public final class ClosedPvpRules {
         rules.teams.get(Team.derelict).infiniteResources = true;
 
 	rules.pvpAutoPause = false;
+
+	rules.waves = false;
     }
 
     private ClosedPvpRules() {
